@@ -28,6 +28,24 @@ def init_db():
             joined_at TEXT
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            user_id INTEGER PRIMARY KEY,
+            added_at TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def seed_admins(admin_ids):
+    """config.py dagi ADMIN_IDS ni bazaga bir martalik kiritish (agar hali yo'q bo'lsa)."""
+    conn = get_conn()
+    for uid in admin_ids:
+        conn.execute(
+            "INSERT OR IGNORE INTO admins (user_id, added_at) VALUES (?, ?)",
+            (uid, datetime.now().isoformat())
+        )
     conn.commit()
     conn.close()
 
@@ -96,6 +114,41 @@ def total_downloads():
     n = conn.execute("SELECT COALESCE(SUM(downloads),0) c FROM movies").fetchone()["c"]
     conn.close()
     return n
+
+
+# ---------- ADMINS ----------
+
+def add_admin(user_id):
+    conn = get_conn()
+    conn.execute(
+        "INSERT OR IGNORE INTO admins (user_id, added_at) VALUES (?, ?)",
+        (user_id, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def remove_admin(user_id):
+    conn = get_conn()
+    cur = conn.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
+    conn.commit()
+    removed = cur.rowcount > 0
+    conn.close()
+    return removed
+
+
+def is_admin_db(user_id):
+    conn = get_conn()
+    row = conn.execute("SELECT 1 FROM admins WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row is not None
+
+
+def get_all_admins():
+    conn = get_conn()
+    rows = conn.execute("SELECT user_id FROM admins ORDER BY added_at").fetchall()
+    conn.close()
+    return [r["user_id"] for r in rows]
 
 
 # ---------- USERS ----------
